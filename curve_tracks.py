@@ -4,7 +4,7 @@ import os
 
 class Dialog(wx.Dialog):
     def __init__(self, parent, msg):
-        wx.Dialog.__init__(self, parent, id = -1, title = "Arc Tracks")
+        wx.Dialog.__init__(self, parent, id = -1, title = "Curve Tracks")
         panel = wx.Panel(self)
         message = wx.StaticText(panel, label = msg)
 
@@ -39,11 +39,11 @@ def get_tangent(tracks, t0):
             tangents.append(t1)
     return tangents
 
-class ArcTracks(pcbnew.ActionPlugin):
+class CurveTracks(pcbnew.ActionPlugin):
     def defaults(self):
-        self.name                = "Arc Tracks"
+        self.name                = "Curve Tracks"
         self.category            = "Wiring"
-        self.description         = "Filling the gaps between tracks with arc"
+        self.description         = "Filling the gaps between tracks with curve"
         self.show_toolbar_button = True
         self.icon_file_name      = os.path.join(os.path.dirname(__file__), "icon.png")
     
@@ -57,10 +57,8 @@ class ArcTracks(pcbnew.ActionPlugin):
             return
 
         tangents = get_tangent(tracks, selected_track)
-
         if len(tangents) != 2:
             show_message("ERROR: TANGENT COUNT MUST BE 2. BUT GIVEN {}.".format(len(tangents)))
             return
 
-        for t in tangents:
-            show_message(track_to_string(t))
+        selected_track.DeleteStructure()

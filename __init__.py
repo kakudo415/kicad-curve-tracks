@@ -1,4 +1,4 @@
 import pcbnew
-from .arc_tracks import ArcTracks
+from .curve_tracks import CurveTracks
 
-ArcTracks().register()
+CurveTracks().register()

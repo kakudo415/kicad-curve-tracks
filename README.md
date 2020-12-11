@@ -1,4 +1,4 @@
-# KiCad Arc Tracks
+# KiCad Curve Tracks
 
 Filling the gaps between tracks with arc
 
