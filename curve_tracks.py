@@ -1,6 +1,10 @@
 import pcbnew
 import wx
 import os
+import math
+
+def c(constant, p):
+    return pcbnew.wxPoint(constant * p.x, constant * p.y)
 
 class QuadBezierCurve:
     p0 = pcbnew.wxPoint(0, 0)
@@ -12,8 +16,8 @@ class QuadBezierCurve:
         self.p1 = p1
         self.p2 = p2
 
-    def Coord(self, t):
-        return t*t*p0 + t*(1-t)*p1 + (1-t)*(1-t)*p2
+    def coord(self, t):
+        return c(t*t, self.p0) + c(t*(1-t), self.p1) + c((1-t)*(1-t), self.p2)
 
 class Dialog(wx.Dialog):
     def __init__(self, parent, msg):
@@ -80,6 +84,12 @@ def get_intersection(t0, t1):
 
     return pcbnew.wxPoint(x, y)
 
+def get_length(v):
+    return math.sqrt(v.x*v.x + v.y*v.y)
+
+def get_closer_point(p0, p1, p2):
+    return p1 if get_length(p0 - p1) < get_length(p0 - p2) else p2
+
 class CurveTracks(pcbnew.ActionPlugin):
     def defaults(self):
         self.name                = "Curve Tracks"
@@ -103,6 +113,14 @@ class CurveTracks(pcbnew.ActionPlugin):
             return
 
         intersection = get_intersection(tangents[0], tangents[1])
-        show_message(point_to_string(intersection))
+        
+        points = [
+            get_closer_point(intersection, tangents[0].GetStart(), tangents[0].GetEnd()),
+            get_closer_point(intersection, tangents[1].GetStart(), tangents[1].GetEnd()),
+        ]
+        bezier = QuadBezierCurve(points[0], intersection, points[1])
+        
+        show_message("{}".format(bezier.coord(0)))
+        show_message("{}".format(bezier.coord(1)))
 
         # selected_track.DeleteStructure() TODO: This method will cause crash when use Ctrl + Z
