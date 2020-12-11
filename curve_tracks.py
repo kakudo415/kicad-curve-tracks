@@ -2,6 +2,19 @@ import pcbnew
 import wx
 import os
 
+class QuadBezierCurve:
+    p0 = pcbnew.wxPoint(0, 0)
+    p1 = pcbnew.wxPoint(0, 0)
+    p2 = pcbnew.wxPoint(0, 0)
+
+    def __init__(self, p0, p1, p2):
+        self.p0 = p0
+        self.p1 = p1
+        self.p2 = p2
+
+    def Coord(self, t):
+        return t*t*p0 + t*(1-t)*p1 + (1-t)*(1-t)*p2
+
 class Dialog(wx.Dialog):
     def __init__(self, parent, msg):
         wx.Dialog.__init__(self, parent, id = -1, title = "Curve Tracks")
@@ -39,6 +52,34 @@ def get_tangent(tracks, t0):
             tangents.append(t1)
     return tangents
 
+def get_intersection(t0, t1):
+    a0x = t0.GetStart().x
+    a0y = t0.GetStart().y
+    a1x = t0.GetEnd().x
+    a1y = t0.GetEnd().y
+    b0x = t1.GetStart().x
+    b0y = t1.GetStart().y
+    b1x = t1.GetEnd().x
+    b1y = t1.GetEnd().y
+
+    if (a0x - a1x) == 0:
+        x = a0x
+        y = float(b0y - b1y) / (b0x - b1x) * (x - b0x) + b0y
+        return pcbnew.wxPoint(x, y)
+    
+    if (b0x - b1x) == 0:
+        x = b0x
+        y = float(a0y - a1y) / (a0x - a1x) * (x - a0x) + a0y
+        return pcbnew.wxPoint(x, y)
+
+    s0 = float(a0y - a1y) / (a0x - a1x)
+    s1 = float(b0y - b1y) / (b0x - b1x)
+
+    x = (s1*b0x - s0*a0x + a0y - b0y) / (s1 - s0)
+    y = s0 * (x - a0x) + a0y
+
+    return pcbnew.wxPoint(x, y)
+
 class CurveTracks(pcbnew.ActionPlugin):
     def defaults(self):
         self.name                = "Curve Tracks"
@@ -61,4 +102,7 @@ class CurveTracks(pcbnew.ActionPlugin):
             show_message("ERROR: TANGENT COUNT MUST BE 2. BUT GIVEN {}.".format(len(tangents)))
             return
 
-        selected_track.DeleteStructure()
+        intersection = get_intersection(tangents[0], tangents[1])
+        show_message(point_to_string(intersection))
+
+        # selected_track.DeleteStructure() TODO: This method will cause crash when use Ctrl + Z
