@@ -148,3 +148,4 @@ class CurveTracks(pcbnew.ActionPlugin):
         self.draw_track(bezier, selected_track)
 
         # selected_track.DeleteStructure() TODO: This method will cause crash when use Ctrl + Z
+        # self.pcb.Delete(selected_track) TODO: This method will also cause crash when use Ctrl + Z
