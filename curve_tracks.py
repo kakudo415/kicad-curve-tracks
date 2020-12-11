@@ -17,7 +17,7 @@ class QuadBezierCurve:
         self.p2 = p2
 
     def coord(self, t):
-        return c(t*t, self.p0) + c(t*(1-t), self.p1) + c((1-t)*(1-t), self.p2)
+        return c(t*t, self.p0) + c(2*t*(1-t), self.p1) + c((1-t)*(1-t), self.p2)
 
 class Dialog(wx.Dialog):
     def __init__(self, parent, msg):
@@ -70,7 +70,7 @@ def get_intersection(t0, t1):
         x = a0x
         y = float(b0y - b1y) / (b0x - b1x) * (x - b0x) + b0y
         return pcbnew.wxPoint(x, y)
-    
+
     if (b0x - b1x) == 0:
         x = b0x
         y = float(a0y - a1y) / (a0x - a1x) * (x - a0x) + a0y
@@ -90,6 +90,18 @@ def get_length(v):
 def get_closer_point(p0, p1, p2):
     return p1 if get_length(p0 - p1) < get_length(p0 - p2) else p2
 
+def get_lines_coord(bezier):
+    coords = []
+    for _t in range(17):
+        t = float(_t) / 16
+        coords.append(bezier.coord(t))
+    lines = []
+    for i in range(len(coords)):
+        if i == 0:
+            continue
+        lines.append((coords[i-1], coords[i]))
+    return lines
+
 class CurveTracks(pcbnew.ActionPlugin):
     def defaults(self):
         self.name                = "Curve Tracks"
@@ -97,10 +109,23 @@ class CurveTracks(pcbnew.ActionPlugin):
         self.description         = "Filling the gaps between tracks with curve"
         self.show_toolbar_button = True
         self.icon_file_name      = os.path.join(os.path.dirname(__file__), "icon.png")
-    
+
+    def new_track(self, coord, w, layer):
+        t = pcbnew.TRACK(self.pcb)
+        t.SetStart(coord[0])
+        t.SetEnd(coord[1])
+        t.SetWidth(w)
+        t.SetLayer(layer)
+        return t
+
+    def draw_track(self, bezier, template):
+        for c in get_lines_coord(bezier):
+            t = self.new_track(c, template.GetWidth(), template.GetLayer())
+            self.pcb.Add(t)
+
     def Run(self):
-        pcb      = pcbnew.GetBoard()
-        tracks   = pcb.GetTracks()
+        self.pcb = pcbnew.GetBoard()
+        tracks   = self.pcb.GetTracks()
 
         selected_track = get_selected_track(tracks)
         if selected_track is None:
@@ -113,14 +138,13 @@ class CurveTracks(pcbnew.ActionPlugin):
             return
 
         intersection = get_intersection(tangents[0], tangents[1])
-        
+
         points = [
             get_closer_point(intersection, tangents[0].GetStart(), tangents[0].GetEnd()),
             get_closer_point(intersection, tangents[1].GetStart(), tangents[1].GetEnd()),
         ]
         bezier = QuadBezierCurve(points[0], intersection, points[1])
-        
-        show_message("{}".format(bezier.coord(0)))
-        show_message("{}".format(bezier.coord(1)))
+
+        self.draw_track(bezier, selected_track)
 
         # selected_track.DeleteStructure() TODO: This method will cause crash when use Ctrl + Z
