@@ -81,8 +81,10 @@ def is_parallel(v0, v1):
 def get_tangent(tracks, t0):
     tangents  = []
     for t1 in tracks:
-        if (t0.GetStart() != t1.GetStart() or t0.GetEnd() != t1.GetEnd()) and is_connected(t0, t1):
-            tangents.append(t1)
+        if type(t1) == pcbnew.TRACK:
+            if t0.GetLayer() == t1.GetLayer():
+                if (t1.GetStart() != t1.GetEnd()) and (t0.GetStart() != t1.GetStart() or t0.GetEnd() != t1.GetEnd()) and is_connected(t0, t1):
+                    tangents.append(t1)
     return tangents
 
 def get_intersection(v0s, v0e, v1s, v1e):
