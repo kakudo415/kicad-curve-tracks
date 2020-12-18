@@ -124,8 +124,9 @@ def get_closer_point(p0, p1, p2):
 
 def get_lines_coord(bezier):
     coords = []
-    for _t in range(17):
-        t = float(_t) / 16
+    n = 32
+    for _t in range(n):
+        t = float(_t) / (n-1)
         coords.append(bezier.coord(t))
     lines = []
     for i in range(len(coords)):
