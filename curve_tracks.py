@@ -6,6 +6,9 @@ import math
 def c(constant, p):
     return pcbnew.wxPoint(constant * p.x, constant * p.y)
 
+def d(v):
+    return math.sqrt(v[0]**2 + v[1]**2)
+
 class QuadBezierCurve:
     p0 = pcbnew.wxPoint(0, 0)
     p1 = pcbnew.wxPoint(0, 0)
@@ -18,6 +21,21 @@ class QuadBezierCurve:
 
     def coord(self, t):
         return c(t*t, self.p0) + c(2*t*(1-t), self.p1) + c((1-t)*(1-t), self.p2)
+
+class CubicBezierCurve:
+    p0 = pcbnew.wxPoint(0, 0)
+    p1 = pcbnew.wxPoint(0, 0)
+    p2 = pcbnew.wxPoint(0, 0)
+    p3 = pcbnew.wxPoint(0, 0)
+
+    def __init__(self, p0, p1, p2, p3):
+        self.p0 = p0
+        self.p1 = p1
+        self.p2 = p2
+        self.p3 = p3
+    
+    def coord(self, t):
+        return c(t**3, self.p0) + c(3*t**2*(1-t), self.p1) + c(3*t*(1-t)**2, self.p2) + c((1-t)**3, self.p3)
 
 class Dialog(wx.Dialog):
     def __init__(self, parent, msg):
@@ -49,6 +67,17 @@ def get_selected_track(tracks):
 def is_connected(t0, t1):
     return t0.GetStart() == t1.GetStart() or t0.GetStart() == t1.GetEnd() or t0.GetEnd() == t1.GetStart() or t0.GetEnd() == t1.GetEnd()
 
+def get_orthogonal(v):
+    return [v[1], -v[0]]
+
+def get_orthogonal_line(v0, v1, c):
+    vo = (v0-c) if d(v0-c) > d(v1-c) else (v1-c)
+    return [c, c + pcbnew.wxPoint(*get_orthogonal(vo))]
+
+def is_parallel(v0, v1):
+    v1o = get_orthogonal(v1)
+    return v0[0] * v1o[0] + v0[1] * v1o[1] == 0
+
 def get_tangent(tracks, t0):
     tangents  = []
     for t1 in tracks:
@@ -56,15 +85,18 @@ def get_tangent(tracks, t0):
             tangents.append(t1)
     return tangents
 
-def get_intersection(t0, t1):
-    a0x = t0.GetStart().x
-    a0y = t0.GetStart().y
-    a1x = t0.GetEnd().x
-    a1y = t0.GetEnd().y
-    b0x = t1.GetStart().x
-    b0y = t1.GetStart().y
-    b1x = t1.GetEnd().x
-    b1y = t1.GetEnd().y
+def get_intersection(v0s, v0e, v1s, v1e):
+    a0x = v0s.x
+    a0y = v0s.y
+    a1x = v0e.x
+    a1y = v0e.y
+    b0x = v1s.x
+    b0y = v1s.y
+    b1x = v1e.x
+    b1y = v1e.y
+
+    if is_parallel([a0x - a1x, a0y - a1y], [b0x - b1x, b0y - b1y]):
+        return None
 
     if (a0x - a1x) == 0:
         x = a0x
@@ -137,13 +169,25 @@ class CurveTracks(pcbnew.ActionPlugin):
             show_message("ERROR: TANGENT COUNT MUST BE 2. BUT GIVEN {}.".format(len(tangents)))
             return
 
-        intersection = get_intersection(tangents[0], tangents[1])
+        bezier = None
 
-        points = [
-            get_closer_point(intersection, tangents[0].GetStart(), tangents[0].GetEnd()),
-            get_closer_point(intersection, tangents[1].GetStart(), tangents[1].GetEnd()),
-        ]
-        bezier = QuadBezierCurve(points[0], intersection, points[1])
+        intersection = get_intersection(tangents[0].GetStart(), tangents[0].GetEnd(), tangents[1].GetStart(), tangents[1].GetEnd())
+
+        if intersection is None:
+            points = [
+                get_closer_point(selected_track.GetStart(), tangents[0].GetStart(), tangents[0].GetEnd()),
+                get_closer_point(selected_track.GetStart(), tangents[1].GetStart(), tangents[1].GetEnd()),
+            ]
+            points.insert(1, get_intersection(tangents[0].GetStart(), tangents[0].GetEnd(), *get_orthogonal_line(tangents[1].GetStart(), tangents[1].GetEnd(), points[1])))
+            points.insert(2, get_intersection(tangents[1].GetStart(), tangents[1].GetEnd(), *get_orthogonal_line(tangents[0].GetStart(), tangents[0].GetEnd(), points[0])))
+            bezier = CubicBezierCurve(*points)
+        else:
+            points = [
+                get_closer_point(intersection, tangents[0].GetStart(), tangents[0].GetEnd()),
+                intersection,
+                get_closer_point(intersection, tangents[1].GetStart(), tangents[1].GetEnd()),
+            ]
+            bezier = QuadBezierCurve(*points)
 
         self.draw_track(bezier, selected_track)
 
