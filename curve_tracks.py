@@ -178,8 +178,10 @@ class CurveTracks(pcbnew.ActionPlugin):
                 get_closer_point(selected_track.GetStart(), tangents[0].GetStart(), tangents[0].GetEnd()),
                 get_closer_point(selected_track.GetStart(), tangents[1].GetStart(), tangents[1].GetEnd()),
             ]
-            points.insert(1, get_intersection(tangents[0].GetStart(), tangents[0].GetEnd(), *get_orthogonal_line(tangents[1].GetStart(), tangents[1].GetEnd(), points[1])))
-            points.insert(2, get_intersection(tangents[1].GetStart(), tangents[1].GetEnd(), *get_orthogonal_line(tangents[0].GetStart(), tangents[0].GetEnd(), points[0])))
+            perpendicular_intersection = get_intersection(tangents[0].GetStart(), tangents[0].GetEnd(), *get_orthogonal_line(tangents[1].GetStart(), tangents[1].GetEnd(), points[1]))
+            points.insert(1, c(0.5, points[0] + perpendicular_intersection))
+            perpendicular_intersection = get_intersection(tangents[1].GetStart(), tangents[1].GetEnd(), *get_orthogonal_line(tangents[0].GetStart(), tangents[0].GetEnd(), points[0]))
+            points.insert(2, c(0.5, points[2] + perpendicular_intersection))
             bezier = CubicBezierCurve(*points)
         else:
             points = [
